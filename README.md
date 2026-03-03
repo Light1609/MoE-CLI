@@ -1,6 +1,6 @@
 # MoA Infinite Builder CLI (Bootstrap v2 functional)
 
-CLI local-first con loop funcional; ahora soporta routing con Gemini API (con fallback determinista si no hay API key).
+CLI local-first con loop funcional. Por defecto corre en modo determinista (simple y estable); Gemini es opcional.
 
 ## Modelos configurados
 
@@ -21,11 +21,12 @@ node src/cli.js cache clear
 node src/cli.js doctor
 ```
 
-## API key
+## Modo LLM opcional
 
-Configura tu key como variable de entorno (no se guarda en el repo):
+Por defecto `run` usa modo determinista. Para activar Gemini:
 
 ```bash
+export MOA_USE_LLM=1
 export GEMINI_API_KEY="<tu_api_key>"
 ```
 
@@ -36,4 +37,4 @@ export GEMINI_API_KEY="<tu_api_key>"
 - Tool gates reales por allowlist (`npm test` activo por default).
 - Artefactos de run en `.moa/runs/<runId>/` con `events.jsonl`, `metrics.jsonl`, `patch.json` y reportes de gates.
 - Exact cache por `objective + repo_fingerprint` para evitar regeneración repetida.
-- `run` usa Gemini cuando `GEMINI_API_KEY` está presente; si falla, aplica fallback determinista.
+- `run` usa modo determinista por defecto. Con `MOA_USE_LLM=1` + `GEMINI_API_KEY`, intenta Gemini y si falla aplica fallback determinista.

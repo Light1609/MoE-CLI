@@ -13,7 +13,8 @@ export const configTemplate = {
   semantic_cache_threshold: 0.92,
   llm: {
     provider: "gemini",
-    api_key_env: "GEMINI_API_KEY"
+    api_key_env: "GEMINI_API_KEY",
+    enabled: false
   },
   gates: {
     lint: false,

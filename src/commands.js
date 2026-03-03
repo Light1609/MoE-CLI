@@ -74,9 +74,10 @@ function responseWithSchemaValidation(payload) {
 async function buildPatch(objective, config) {
   const memoryTarget = ensureWorkspaceTarget();
   const apiKey = process.env[config.llm?.api_key_env ?? "GEMINI_API_KEY"];
+  const llmEnabled = config.llm?.enabled === true || process.env.MOA_USE_LLM === "1";
 
-  if (!apiKey) {
-    return { patch: generateDeterministicPatch(objective), source: "deterministic", gatewayError: null, route: null };
+  if (!llmEnabled || !apiKey) {
+    return { patch: generateDeterministicPatch(objective), source: "deterministic", gatewayError: llmEnabled ? null : "llm_disabled", route: null };
   }
 
   const taskClass = classifyTask(objective);
@@ -106,7 +107,7 @@ async function runCompilerLoop(objective, config, runDir) {
   const fingerprint = repoFingerprint();
   const taskClass = classifyTask(objective);
   const route = chooseModel(taskClass, config);
-  const llmConfigured = Boolean(process.env[config.llm?.api_key_env ?? "GEMINI_API_KEY"]);
+  const llmConfigured = (config.llm?.enabled === true || process.env.MOA_USE_LLM === "1") && Boolean(process.env[config.llm?.api_key_env ?? "GEMINI_API_KEY"]);
   const cacheKey = buildExactKey({ objective, fingerprint, schema: patchSchema.$id, model: route.model, llmConfigured });
   const cached = getExactCache(cacheKey);
 
@@ -227,7 +228,7 @@ export async function cmdRun(objective = "") {
       route,
       report,
       api_required_next: false,
-      note: "If GEMINI_API_KEY is set, run uses Gemini routing; otherwise it uses deterministic fallback."
+      note: "Default is deterministic mode. Set MOA_USE_LLM=1 (+ GEMINI_API_KEY) to enable Gemini routing."
     },
     errors: [...patchSchemaCheck.errors, ...patchOpsCheck.errors, ...dryRun.errors]
   });
@@ -261,7 +262,11 @@ export async function cmdDoctor() {
   const config = readJson(MOA_CONFIG, configTemplate);
   const envKeyName = config.llm?.api_key_env ?? "GEMINI_API_KEY";
   const tools = ["node", "npm", "pnpm", "eslint", "tsc", "vitest", "jest"].map((t) => ({ tool: t, ...detectBinary(t) }));
-  const connectivity = await checkGeminiConnectivity(process.env[envKeyName]);
+  const llmEnabled = config.llm?.enabled === true || process.env.MOA_USE_LLM === "1";
+  const apiPresent = Boolean(process.env[envKeyName]);
+  const connectivity = llmEnabled && apiPresent
+    ? await checkGeminiConnectivity(process.env[envKeyName])
+    : { ok: false, reason: llmEnabled ? "missing_api_key" : "llm_disabled" };
 
   return responseWithSchemaValidation(buildResponse({
     ok: true,
@@ -272,6 +277,7 @@ export async function cmdDoctor() {
       bootstrap_ready: bootstrapReady,
       llm_provider: config.llm?.provider ?? "gemini",
       llm_api_env: envKeyName,
+      llm_enabled: config.llm?.enabled === true || process.env.MOA_USE_LLM === "1",
       llm_api_configured: Boolean(process.env[envKeyName]),
       tools,
       repo_fingerprint: repoFingerprint(),
