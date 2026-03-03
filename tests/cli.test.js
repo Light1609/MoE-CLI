@@ -15,6 +15,15 @@ test("init returns structured success", () => {
   assert.ok(Array.isArray(result.errors));
 });
 
+test("doctor reports llm status fields", () => {
+  run("init");
+  const result = run("doctor");
+  assert.equal(result.command, "doctor");
+  assert.equal(typeof result.data.llm_enabled, "boolean");
+  assert.equal(typeof result.data.llm_api_configured, "boolean");
+  assert.equal(typeof result.data.gemini_connectivity, "object");
+});
+
 test("run emits a runId and ready_for_apply status", () => {
   run("init");
   const result = run("run", "objetivo", "demo");

@@ -6,6 +6,9 @@
   "scripts": {
     "test": "node --test",
     "verify": "node src/cli.js verify",
-    "doctor": "node src/cli.js doctor"
+    "doctor": "node src/cli.js doctor",
+    "start": "node src/cli.js",
+    "run": "node src/cli.js run \"tarea simple\"",
+    "init": "node src/cli.js init"
   }
 }
