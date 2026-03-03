@@ -1,0 +1,34 @@
+{
+  "schema_version": "1.0.1",
+  "project": {
+    "stack": "node",
+    "conventions": [
+      "structured_json_outputs",
+      "patch_first"
+    ],
+    "constraints": [
+      "local_first",
+      "deterministic_gates"
+    ]
+  },
+  "modules": [],
+  "flows": [],
+  "invariants": [
+    "all_mutating_actions_require_schema_validation",
+    "tool_runner_uses_allowlist"
+  ],
+  "milestones": [
+    {
+      "id": "M0-bootstrap",
+      "gates": [
+        "schema_ok",
+        "patch_apply_ok",
+        "verify"
+      ],
+      "acceptance": [
+        "cli_commands_available",
+        "reports_are_json"
+      ]
+    }
+  ]
+}
