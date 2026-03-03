@@ -41,7 +41,7 @@ function ensureWorkspaceTarget() {
 
 function generateDeterministicPatch(objective = "") {
   const target = ensureWorkspaceTarget();
-  const stamp = `${objective || "(empty)"} @ ${nowIso()}`;
+  const stamp = escapeJsonString(`${objective || "(empty)"} @ ${nowIso()}`);
   return {
     ops: [
       {
@@ -54,6 +54,10 @@ function generateDeterministicPatch(objective = "") {
       }
     ]
   };
+}
+
+function escapeJsonString(value = "") {
+  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 }
 
 function responseWithSchemaValidation(payload) {
@@ -100,11 +104,13 @@ async function buildPatch(objective, config) {
 
 async function runCompilerLoop(objective, config, runDir) {
   const fingerprint = repoFingerprint();
-  const cacheKey = buildExactKey({ objective, fingerprint, schema: patchSchema.$id });
+  const taskClass = classifyTask(objective);
+  const route = chooseModel(taskClass, config);
+  const llmConfigured = Boolean(process.env[config.llm?.api_key_env ?? "GEMINI_API_KEY"]);
+  const cacheKey = buildExactKey({ objective, fingerprint, schema: patchSchema.$id, model: route.model, llmConfigured });
   const cached = getExactCache(cacheKey);
 
   let patchSource = "cache";
-  let route = null;
   let gatewayError = null;
   let patch;
 
@@ -114,7 +120,6 @@ async function runCompilerLoop(objective, config, runDir) {
     const generated = await buildPatch(objective, config);
     patch = generated.patch;
     patchSource = generated.source;
-    route = generated.route;
     gatewayError = generated.gatewayError;
   }
 
@@ -293,6 +298,17 @@ export function cmdApply(patchRunId = "") {
   const schemaCheck = validateAgainstSchema(patch, patchSchema);
   if (!schemaCheck.ok) {
     return responseWithSchemaValidation(buildResponse({ ok: false, command: "apply", runId: patchRunId, errors: schemaCheck.errors }));
+  }
+
+  const gateFile = path.join(runDir, "gates", "verify.json");
+  const gateReport = readJson(gateFile, null);
+  if (!gateReport?.ok) {
+    return responseWithSchemaValidation(buildResponse({
+      ok: false,
+      command: "apply",
+      runId: patchRunId,
+      errors: ["gates_not_green_for_run"]
+    }));
   }
 
   const result = applyPatch(patch, { dryRun: false });

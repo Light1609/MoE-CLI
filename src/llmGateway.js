@@ -10,23 +10,34 @@ function buildPrompt({ objective, memoryTarget }) {
     `Objective: ${objective}`,
     `Target file: ${memoryTarget}`,
     "Allowed operation kinds: insert_after, replace_block, delete_block, replace_regex",
-    "For this run, prefer insert_after using anchor: \"\"objectives\": []\"."
+    "Use insert_after with anchor: \"\"objectives\": []\" and include reason/expected_effect."
   ].join("\n");
 }
 
 function extractText(json) {
   const parts = json?.candidates?.[0]?.content?.parts ?? [];
-  const text = parts.map((p) => p.text ?? "").join("\n").trim();
-  return text;
+  return parts.map((p) => p.text ?? "").join("\n").trim();
 }
 
 function safeParseJson(text) {
-  const plain = text.replace(/^```json\s*/i, "").replace(/^```/i, "").replace(/```$/i, "").trim();
+  const plain = text
+    .replace(/^```json\s*/i, "")
+    .replace(/^```/i, "")
+    .replace(/```$/i, "")
+    .trim();
   return JSON.parse(plain);
 }
 
-export async function generatePatchViaGemini({ apiKey, model, thinkingLevel, objective, memoryTarget, patchSchema, retries = 2 }) {
-  const url = `${API_URL}/${model}:generateContent?key=${apiKey}`;
+export async function generatePatchViaGemini({
+  apiKey,
+  model,
+  thinkingLevel,
+  objective,
+  memoryTarget,
+  patchSchema,
+  retries = 2
+}) {
+  const url = `${API_URL}/${model}:generateContent`;
   const body = {
     contents: [{ role: "user", parts: [{ text: buildPrompt({ objective, memoryTarget }) }] }],
     generationConfig: {
@@ -43,11 +54,18 @@ export async function generatePatchViaGemini({ apiKey, model, thinkingLevel, obj
 
   for (let i = 0; i <= retries; i += 1) {
     try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 30_000);
       const res = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body)
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": apiKey
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal
       });
+      clearTimeout(timer);
 
       if (!res.ok) {
         const msg = await res.text();
@@ -67,9 +85,7 @@ export async function generatePatchViaGemini({ apiKey, model, thinkingLevel, obj
       lastError = `gemini_fetch_error:${error?.message ?? "unknown"}`;
     }
 
-    if (i < retries) {
-      await new Promise((r) => setTimeout(r, 400 * (i + 1)));
-    }
+    if (i < retries) await new Promise((r) => setTimeout(r, 500 * (i + 1)));
   }
 
   return { ok: false, patch: null, error: lastError };
