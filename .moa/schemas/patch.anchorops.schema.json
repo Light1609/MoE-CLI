@@ -1,0 +1,35 @@
+{
+  "$id": "moa.patch.anchorops.v1",
+  "type": "object",
+  "required": [
+    "ops"
+  ],
+  "properties": {
+    "ops": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "kind",
+          "file",
+          "reason",
+          "expected_effect"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "file": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "expected_effect": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

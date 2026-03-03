@@ -1,0 +1,3 @@
+.moa/cache/*.json
+.moa/runs/
+.moa/memory/objectives.log

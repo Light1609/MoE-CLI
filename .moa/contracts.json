@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0.1",
+  "invariants": [
+    "responses_must_be_json",
+    "contract_changes_require_ccr"
+  ],
+  "response_shape": {
+    "ok": "boolean",
+    "command": "string",
+    "runId": "string|null",
+    "data": "object",
+    "errors": "array"
+  },
+  "ccr": {
+    "required_fields": [
+      "type",
+      "id",
+      "reason",
+      "impact",
+      "tests_to_update",
+      "migration_notes"
+    ],
+    "type": "CCR"
+  }
+}

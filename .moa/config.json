@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0.1",
+  "models": {
+    "normalize": {
+      "model": "gemini-3.1-flash-lite-preview",
+      "thinking_level": "low"
+    },
+    "implement": {
+      "model": "gemini-3-flash-preview",
+      "thinking_level": "medium"
+    },
+    "architecture": {
+      "model": "gemini-3.1-pro-preview",
+      "thinking_level": "high"
+    }
+  },
+  "budgets": {
+    "max_iterations": 6,
+    "max_tokens": 250000,
+    "stagnation_limit": 2
+  },
+  "semantic_cache_threshold": 0.92,
+  "llm": {
+    "provider": "gemini",
+    "api_key_env": "GEMINI_API_KEY",
+    "enabled": false
+  },
+  "gates": {
+    "lint": false,
+    "typecheck": false,
+    "tests": true,
+    "build": false
+  },
+  "tool_allowlist": [
+    "node",
+    "npm",
+    "pnpm",
+    "eslint",
+    "tsc",
+    "vitest",
+    "jest"
+  ]
+}
