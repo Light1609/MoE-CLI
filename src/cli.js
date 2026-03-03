@@ -25,7 +25,7 @@ async function main() {
       printResponse(cmdVerify());
       break;
     case "doctor":
-      printResponse(cmdDoctor());
+      printResponse(await cmdDoctor());
       break;
     case "apply":
       printResponse(cmdApply(argAfter("--patch")));

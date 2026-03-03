@@ -20,7 +20,7 @@ import { detectBinary, runGates } from "./toolRunner.js";
 import { createRun, writeEvent, writeGateReport, writeMetrics, writePatch, writeSummary } from "./runArtifacts.js";
 import { buildExactKey, cacheClear, cacheStats, getExactCache, repoFingerprint, setExactCache } from "./cache.js";
 import { chooseModel, classifyTask } from "./router.js";
-import { generatePatchViaGemini } from "./llmGateway.js";
+import { checkGeminiConnectivity, generatePatchViaGemini } from "./llmGateway.js";
 
 function nowIso() {
   return new Date().toISOString();
@@ -128,7 +128,7 @@ async function runCompilerLoop(objective, config, runDir) {
   const dryRun = applyPatch(patch, { dryRun: true });
   const gates = runGates(config);
 
-  if (!cached && patchSchemaCheck.ok && patchOpsCheck.ok) {
+  if (!cached && patchSchemaCheck.ok && patchOpsCheck.ok && patchSource !== "deterministic_fallback") {
     setExactCache(cacheKey, { patch, fingerprint, source: patchSource });
   }
 
@@ -254,13 +254,14 @@ export function cmdVerify() {
   }));
 }
 
-export function cmdDoctor() {
+export async function cmdDoctor() {
   const nodeVersion = process.version;
   const packageExists = exists("package.json");
   const bootstrapReady = exists(MOA_CONFIG) && exists(MOA_IR) && exists(MOA_CONTRACTS);
   const config = readJson(MOA_CONFIG, configTemplate);
   const envKeyName = config.llm?.api_key_env ?? "GEMINI_API_KEY";
   const tools = ["node", "npm", "pnpm", "eslint", "tsc", "vitest", "jest"].map((t) => ({ tool: t, ...detectBinary(t) }));
+  const connectivity = await checkGeminiConnectivity(process.env[envKeyName]);
 
   return responseWithSchemaValidation(buildResponse({
     ok: true,
@@ -274,7 +275,8 @@ export function cmdDoctor() {
       llm_api_configured: Boolean(process.env[envKeyName]),
       tools,
       repo_fingerprint: repoFingerprint(),
-      cache: cacheStats()
+      cache: cacheStats(),
+      gemini_connectivity: connectivity
     }
   }));
 }

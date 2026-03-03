@@ -28,6 +28,49 @@ function safeParseJson(text) {
   return JSON.parse(plain);
 }
 
+function classifyNetworkError(error) {
+  const message = error?.message ?? "unknown";
+  const cause = error?.cause?.message ?? "";
+  const joined = `${message} ${cause}`.toLowerCase();
+
+  if (joined.includes("connect tunnel") || joined.includes("proxy") || joined.includes("403")) {
+    return "proxy_or_tunnel_blocked";
+  }
+  if (joined.includes("timed out") || joined.includes("timeout") || joined.includes("aborted")) {
+    return "network_timeout";
+  }
+  if (joined.includes("enotfound") || joined.includes("dns")) {
+    return "dns_or_name_resolution";
+  }
+  return "network_fetch_failed";
+}
+
+export async function checkGeminiConnectivity(apiKey) {
+  if (!apiKey) return { ok: false, reason: "missing_api_key" };
+
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8_000);
+    const res = await fetch(`${API_URL}?pageSize=1`, {
+      method: "GET",
+      headers: { "x-goog-api-key": apiKey },
+      signal: controller.signal
+    });
+    clearTimeout(timer);
+    if (!res.ok) {
+      const body = await res.text();
+      return { ok: false, reason: `gemini_http_${res.status}`, detail: body.slice(0, 200) };
+    }
+    return { ok: true };
+  } catch (error) {
+    return {
+      ok: false,
+      reason: classifyNetworkError(error),
+      detail: `${error?.message ?? "unknown"} ${error?.cause?.message ?? ""}`.trim().slice(0, 200)
+    };
+  }
+}
+
 export async function generatePatchViaGemini({
   apiKey,
   model,
@@ -35,7 +78,7 @@ export async function generatePatchViaGemini({
   objective,
   memoryTarget,
   patchSchema,
-  retries = 2
+  retries = 1
 }) {
   const url = `${API_URL}/${model}:generateContent`;
   const body = {
@@ -55,7 +98,7 @@ export async function generatePatchViaGemini({
   for (let i = 0; i <= retries; i += 1) {
     try {
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 30_000);
+      const timer = setTimeout(() => controller.abort(), 8_000);
       const res = await fetch(url, {
         method: "POST",
         headers: {
@@ -82,10 +125,12 @@ export async function generatePatchViaGemini({
         }
       }
     } catch (error) {
-      lastError = `gemini_fetch_error:${error?.message ?? "unknown"}`;
+      const classified = classifyNetworkError(error);
+      const detail = `${error?.message ?? "unknown"} ${error?.cause?.message ?? ""}`.trim().slice(0, 200);
+      lastError = `${classified}:${detail}`;
     }
 
-    if (i < retries) await new Promise((r) => setTimeout(r, 500 * (i + 1)));
+    if (i < retries) await new Promise((r) => setTimeout(r, 300 * (i + 1)));
   }
 
   return { ok: false, patch: null, error: lastError };
